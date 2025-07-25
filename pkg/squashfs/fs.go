@@ -663,7 +663,7 @@ func (m *MemFS) WriteToSquashFS(imagePath string, sizeHint int64) error {
 	}
 	
 	// Create SquashFS disk image
-	diskImg, err := diskfs.Create(imagePath, sizeHint, diskfs.SectorSizeDefault)
+	diskImg, err := diskfs.Create(imagePath, sizeHint, diskfs.SectorSize4k)
 	if err != nil {
 		return fmt.Errorf("creating disk: %w", err)
 	}
@@ -738,11 +738,9 @@ func (m *MemFS) writeNodeToSquashFS(fs filesystem.FileSystem, node *node, path s
 	} else {
 		// Handle files
 		if node.mode&os.ModeSymlink != 0 {
-			// Create symbolic link
-			target := string(node.data)
-			if err := fs.Symlink(target, path); err != nil {
-				return fmt.Errorf("creating symlink %s -> %s: %w", path, target, err)
-			}
+			// Skip symlinks as go-diskfs doesn't support them for SquashFS
+			// TODO: Add symlink support when go-diskfs implements it
+			return nil
 		} else {
 			// Create regular file
 			file, err := fs.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC)
