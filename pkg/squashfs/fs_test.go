@@ -15,7 +15,6 @@
 package squashfs
 
 import (
-	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -301,13 +300,18 @@ func TestReadDir(t *testing.T) {
 		names[entry.Name()] = entry.IsDir()
 	}
 	
-	if !names["app1"] || names["app1"] {
+	isDir, exists := names["app1"]
+	if !exists || isDir {
 		t.Fatal("app1 should be a file")
 	}
-	if !names["app2"] || names["app2"] {
+	
+	isDir, exists = names["app2"]
+	if !exists || isDir {
 		t.Fatal("app2 should be a file")
 	}
-	if !names["subdir"] || !names["subdir"] {
+	
+	isDir, exists = names["subdir"]
+	if !exists || !isDir {
 		t.Fatal("subdir should be a directory")
 	}
 }
