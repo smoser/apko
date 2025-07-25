@@ -250,16 +250,20 @@ func (m *MemFS) ReadFile(name string) ([]byte, error) {
 
 // WriteFile writes data to a file
 func (m *MemFS) WriteFile(name string, data []byte, mode fs.FileMode) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	
+	// First check if file exists without holding the main lock
+	m.mu.RLock()
 	node, err := m.getNode(name)
+	m.mu.RUnlock()
+	
 	if err != nil {
-		// Create the file
+		// File doesn't exist, create parent directories and file
 		if err := m.MkdirAll(filepath.Dir(name), 0o755); err != nil {
 			return err
 		}
+		
+		m.mu.Lock()
 		node, err = m.createFileNode(name, mode)
+		m.mu.Unlock()
 		if err != nil {
 			return err
 		}
