@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/diskfs/go-diskfs"
+	"github.com/diskfs/go-diskfs/disk"
 	"github.com/diskfs/go-diskfs/filesystem"
 	"github.com/diskfs/go-diskfs/filesystem/squashfs"
 
@@ -658,13 +659,13 @@ func (m *MemFS) WriteToSquashFS(imagePath string, sizeHint int64) error {
 	}
 	
 	// Create SquashFS disk image
-	disk, err := diskfs.Create(imagePath, sizeHint, diskfs.Raw, diskfs.SectorSizeDefault)
+	diskImg, err := diskfs.Create(imagePath, sizeHint, diskfs.SectorSizeDefault)
 	if err != nil {
 		return fmt.Errorf("creating disk: %w", err)
 	}
-	defer disk.Close()
+	defer diskImg.Close()
 	
-	fs, err := disk.CreateFilesystem(diskfs.FilesystemSpec{
+	fs, err := diskImg.CreateFilesystem(disk.FilesystemSpec{
 		Partition:   0,
 		FSType:      filesystem.TypeSquashfs,
 		VolumeLabel: "apko-squashfs",
@@ -732,7 +733,7 @@ func (m *MemFS) writeNodeToSquashFS(fs filesystem.FileSystem, node *node, path s
 		}
 	} else {
 		// Handle files
-		if node.mode&fs.ModeSymlink != 0 {
+		if node.mode&os.ModeSymlink != 0 {
 			// Create symbolic link
 			target := string(node.data)
 			if err := fs.Symlink(target, path); err != nil {
@@ -766,7 +767,7 @@ func (m *MemFS) writeNodeToSquashFS(fs filesystem.FileSystem, node *node, path s
 type memFile struct {
 	node   *node
 	name   string
-	fs     *memFS
+	fs     *MemFS
 	offset int64
 	flag   int
 }
