@@ -38,6 +38,7 @@ import (
 	apkfs "chainguard.dev/apko/pkg/apk/fs"
 	"chainguard.dev/apko/pkg/lock"
 	"chainguard.dev/apko/pkg/options"
+	"chainguard.dev/apko/pkg/squashfs"
 )
 
 // pgzip's default is GOMAXPROCS(0)
@@ -128,6 +129,48 @@ func newLayerWriter(out *os.File) *layerWriter {
 			return l, nil
 		},
 	}
+}
+
+// createSquashFSLayer creates a SquashFS layer from the filesystem
+func (bc *Context) createSquashFSLayer(ctx context.Context, outfile *os.File) (string, v1.Layer, error) {
+	// Close the output file and remove it - we'll create the SquashFS file directly
+	outfile.Close()
+	os.Remove(outfile.Name())
+	
+	// Create SquashFS image
+	squashfsFS, ok := bc.fs.(*squashfs.MemFS)
+	if !ok {
+		return "", nil, fmt.Errorf("filesystem is not a SquashFS filesystem")
+	}
+	
+	if err := squashfsFS.WriteToSquashFS(outfile.Name(), 0); err != nil {
+		return "", nil, fmt.Errorf("writing SquashFS image: %w", err)
+	}
+	
+	// Calculate checksum of the SquashFS file
+	file, err := os.Open(outfile.Name())
+	if err != nil {
+		return "", nil, fmt.Errorf("reopening SquashFS file: %w", err)
+	}
+	defer file.Close()
+	
+	hasher := sha256.New()
+	if _, err := io.Copy(hasher, file); err != nil {
+		return "", nil, fmt.Errorf("calculating SquashFS checksum: %w", err)
+	}
+	
+	l := &layer{
+		uncompressed: outfile.Name(),
+		desc: &v1.Descriptor{
+			MediaType: "application/vnd.oci.image.layer.squashfs",
+		},
+		diffid: &v1.Hash{
+			Algorithm: "sha256",
+			Hex:       hex.EncodeToString(hasher.Sum(nil)),
+		},
+	}
+	
+	return outfile.Name(), l, nil
 }
 
 func (bc *Context) buildImage(ctx context.Context) ([]apk.InstalledDiff, error) {

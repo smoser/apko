@@ -162,7 +162,7 @@ func (bc *Context) BuildLayers(ctx context.Context) ([]v1.Layer, error) {
 
 // ImageLayoutToLayer given an already built-out
 // image in an fs from BuildImage(), create
-// an OCI image layer tgz.
+// an OCI image layer (either tar.gz or SquashFS).
 func (bc *Context) ImageLayoutToLayer(ctx context.Context) (string, v1.Layer, error) {
 	ctx, span := otel.Tracer("apko").Start(ctx, "ImageLayoutToLayer")
 	defer span.End()
@@ -182,10 +182,14 @@ func (bc *Context) ImageLayoutToLayer(ctx context.Context) (string, v1.Layer, er
 		outfile, err = os.Create(filepath.Join(bc.o.TempDir(), bc.o.TarballFileName()))
 	}
 	if err != nil {
-		return "", nil, fmt.Errorf("creating tarball file: %w", err)
+		return "", nil, fmt.Errorf("creating layer file: %w", err)
 	}
 	bc.o.TarballPath = outfile.Name()
 	defer outfile.Close()
+
+	if bc.o.UseSquashFS {
+		return bc.createSquashFSLayer(ctx, outfile)
+	}
 
 	lw := newLayerWriter(outfile)
 

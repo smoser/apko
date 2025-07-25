@@ -34,10 +34,12 @@ import (
 	"github.com/chainguard-dev/clog"
 
 	"chainguard.dev/apko/pkg/apk/apk"
+	apkfs "chainguard.dev/apko/pkg/apk/fs"
 	"chainguard.dev/apko/pkg/build"
 	"chainguard.dev/apko/pkg/build/oci"
 	"chainguard.dev/apko/pkg/build/types"
 	"chainguard.dev/apko/pkg/sbom"
+	"chainguard.dev/apko/pkg/squashfs"
 	"chainguard.dev/apko/pkg/tarfs"
 )
 
@@ -58,6 +60,7 @@ func buildCmd() *cobra.Command {
 	var lockfile string
 	var includePaths []string
 	var ignoreSignatures bool
+	var useSquashFS bool
 
 	cmd := &cobra.Command{
 		Use:   "build",
@@ -115,6 +118,7 @@ Along the image, apko will generate SBOMs (software bill of materials) describin
 				build.WithTempDir(tmp),
 				build.WithIncludePaths(includePaths),
 				build.WithIgnoreSignatures(ignoreSignatures),
+				build.WithSquashFS(useSquashFS),
 			)
 		},
 	}
@@ -135,6 +139,7 @@ Along the image, apko will generate SBOMs (software bill of materials) describin
 	cmd.Flags().StringVar(&lockfile, "lockfile", "", "a path to .lock.json file (e.g. produced by apko lock) that constraints versions of packages to the listed ones (default '' means no additional constraints)")
 	cmd.Flags().StringSliceVar(&includePaths, "include-paths", []string{}, "Additional include paths where to look for input files (config, base image, etc.). By default apko will search for paths only in workdir. Include paths may be absolute, or relative. Relative paths are interpreted relative to workdir. For adding extra paths for packages, use --repository-append.")
 	cmd.Flags().BoolVar(&ignoreSignatures, "ignore-signatures", false, "ignore repository signature verification")
+	cmd.Flags().BoolVar(&useSquashFS, "squashfs", false, "use SquashFS format for layers instead of tar.gz")
 	return cmd
 }
 
@@ -258,7 +263,20 @@ func buildImageComponents(ctx context.Context, workDir string, archs []types.Arc
 			opts := slices.Clone(opts)
 			opts = append(opts, build.WithArch(arch), build.WithImageConfiguration(*ic))
 
-			bc, err := build.New(ctx, tarfs.New(), opts...)
+			// Choose filesystem type based on options
+			o, _, err := build.NewOptions(opts...)
+			if err != nil {
+				return fmt.Errorf("getting options for arch %s: %w", arch, err)
+			}
+			
+			var fs apkfs.FullFS
+			if o.UseSquashFS {
+				fs = squashfs.New()
+			} else {
+				fs = tarfs.New()
+			}
+
+			bc, err := build.New(ctx, fs, opts...)
 			if err != nil {
 				return fmt.Errorf("new build for arch %s: %w", arch, err)
 			}

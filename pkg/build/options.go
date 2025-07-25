@@ -238,3 +238,11 @@ func WithTransport(t http.RoundTripper) Option {
 		return nil
 	}
 }
+
+// WithSquashFS enables SquashFS layer format instead of tar.gz.
+func WithSquashFS(useSquashFS bool) Option {
+	return func(bc *Context) error {
+		bc.o.UseSquashFS = useSquashFS
+		return nil
+	}
+}

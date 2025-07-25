@@ -32,8 +32,8 @@ import (
 	apkfs "chainguard.dev/apko/pkg/apk/fs"
 )
 
-// memFS is an in-memory implementation that will be converted to SquashFS
-type memFS struct {
+// MemFS is an in-memory implementation that will be converted to SquashFS
+type MemFS struct {
 	tree *node
 	mu   sync.RWMutex
 }
@@ -51,8 +51,8 @@ type node struct {
 }
 
 // New creates a new in-memory filesystem that can be converted to SquashFS
-func New() *memFS {
-	return &memFS{
+func New() *MemFS {
+	return &MemFS{
 		tree: &node{
 			dir:      true,
 			children: map[string]*node{},
@@ -65,7 +65,7 @@ func New() *memFS {
 }
 
 // Mkdir creates a directory with the given name and permissions
-func (m *memFS) Mkdir(path string, perm fs.FileMode) error {
+func (m *MemFS) Mkdir(path string, perm fs.FileMode) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	
@@ -98,7 +98,7 @@ func (m *memFS) Mkdir(path string, perm fs.FileMode) error {
 }
 
 // MkdirAll creates all directories in the path
-func (m *memFS) MkdirAll(path string, perm fs.FileMode) error {
+func (m *MemFS) MkdirAll(path string, perm fs.FileMode) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	
@@ -138,7 +138,7 @@ func (m *memFS) MkdirAll(path string, perm fs.FileMode) error {
 }
 
 // getNode retrieves a node by path
-func (m *memFS) getNode(path string) (*node, error) {
+func (m *MemFS) getNode(path string) (*node, error) {
 	if path == "/" || path == "." {
 		return m.tree, nil
 	}
@@ -164,17 +164,17 @@ func (m *memFS) getNode(path string) (*node, error) {
 }
 
 // Open opens a file for reading
-func (m *memFS) Open(name string) (fs.File, error) {
+func (m *MemFS) Open(name string) (fs.File, error) {
 	return m.OpenFile(name, os.O_RDONLY, 0)
 }
 
 // OpenReaderAt opens a file that supports ReaderAt
-func (m *memFS) OpenReaderAt(name string) (apkfs.File, error) {
+func (m *MemFS) OpenReaderAt(name string) (apkfs.File, error) {
 	return m.OpenFile(name, os.O_RDONLY, 0)
 }
 
 // OpenFile opens a file with specified flags and permissions
-func (m *memFS) OpenFile(name string, flag int, perm fs.FileMode) (apkfs.File, error) {
+func (m *MemFS) OpenFile(name string, flag int, perm fs.FileMode) (apkfs.File, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	
@@ -195,7 +195,7 @@ func (m *memFS) OpenFile(name string, flag int, perm fs.FileMode) (apkfs.File, e
 }
 
 // createFile creates a new file
-func (m *memFS) createFile(name string, flag int, perm fs.FileMode) (apkfs.File, error) {
+func (m *MemFS) createFile(name string, flag int, perm fs.FileMode) (apkfs.File, error) {
 	parent := filepath.Dir(name)
 	base := filepath.Base(name)
 	
@@ -229,7 +229,7 @@ func (m *memFS) createFile(name string, flag int, perm fs.FileMode) (apkfs.File,
 }
 
 // ReadFile reads the entire file
-func (m *memFS) ReadFile(name string) ([]byte, error) {
+func (m *MemFS) ReadFile(name string) ([]byte, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	
@@ -248,7 +248,7 @@ func (m *memFS) ReadFile(name string) ([]byte, error) {
 }
 
 // WriteFile writes data to a file
-func (m *memFS) WriteFile(name string, data []byte, mode fs.FileMode) error {
+func (m *MemFS) WriteFile(name string, data []byte, mode fs.FileMode) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	
@@ -276,7 +276,7 @@ func (m *memFS) WriteFile(name string, data []byte, mode fs.FileMode) error {
 }
 
 // createFileNode creates a new file node
-func (m *memFS) createFileNode(name string, mode fs.FileMode) (*node, error) {
+func (m *MemFS) createFileNode(name string, mode fs.FileMode) (*node, error) {
 	parent := filepath.Dir(name)
 	base := filepath.Base(name)
 	
@@ -306,7 +306,7 @@ func (m *memFS) createFileNode(name string, mode fs.FileMode) (*node, error) {
 }
 
 // ReadDir reads directory entries
-func (m *memFS) ReadDir(name string) ([]fs.DirEntry, error) {
+func (m *MemFS) ReadDir(name string) ([]fs.DirEntry, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	
@@ -331,7 +331,7 @@ func (m *memFS) ReadDir(name string) ([]fs.DirEntry, error) {
 }
 
 // Stat returns file information
-func (m *memFS) Stat(name string) (fs.FileInfo, error) {
+func (m *MemFS) Stat(name string) (fs.FileInfo, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	
@@ -344,17 +344,17 @@ func (m *memFS) Stat(name string) (fs.FileInfo, error) {
 }
 
 // Lstat returns file information (same as Stat for this implementation)
-func (m *memFS) Lstat(name string) (fs.FileInfo, error) {
+func (m *MemFS) Lstat(name string) (fs.FileInfo, error) {
 	return m.Stat(name)
 }
 
 // Create creates a new file
-func (m *memFS) Create(name string) (apkfs.File, error) {
+func (m *MemFS) Create(name string) (apkfs.File, error) {
 	return m.OpenFile(name, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0o666)
 }
 
 // Remove removes a file or directory
-func (m *memFS) Remove(name string) error {
+func (m *MemFS) Remove(name string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	
@@ -378,7 +378,7 @@ func (m *memFS) Remove(name string) error {
 }
 
 // Chmod changes file permissions
-func (m *memFS) Chmod(path string, perm fs.FileMode) error {
+func (m *MemFS) Chmod(path string, perm fs.FileMode) error {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	
@@ -394,7 +394,7 @@ func (m *memFS) Chmod(path string, perm fs.FileMode) error {
 }
 
 // Chown changes file ownership
-func (m *memFS) Chown(path string, uid, gid int) error {
+func (m *MemFS) Chown(path string, uid, gid int) error {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	
@@ -411,7 +411,7 @@ func (m *memFS) Chown(path string, uid, gid int) error {
 }
 
 // Chtimes changes file times
-func (m *memFS) Chtimes(path string, atime, mtime time.Time) error {
+func (m *MemFS) Chtimes(path string, atime, mtime time.Time) error {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	
@@ -427,7 +427,7 @@ func (m *memFS) Chtimes(path string, atime, mtime time.Time) error {
 }
 
 // Extended attributes methods (simplified implementations)
-func (m *memFS) SetXattr(path string, attr string, data []byte) error {
+func (m *MemFS) SetXattr(path string, attr string, data []byte) error {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	
@@ -442,7 +442,7 @@ func (m *memFS) SetXattr(path string, attr string, data []byte) error {
 	return nil
 }
 
-func (m *memFS) GetXattr(path string, attr string) ([]byte, error) {
+func (m *MemFS) GetXattr(path string, attr string) ([]byte, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	
@@ -460,7 +460,7 @@ func (m *memFS) GetXattr(path string, attr string) ([]byte, error) {
 	return append([]byte{}, data...), nil
 }
 
-func (m *memFS) RemoveXattr(path string, attr string) error {
+func (m *MemFS) RemoveXattr(path string, attr string) error {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	
@@ -475,7 +475,7 @@ func (m *memFS) RemoveXattr(path string, attr string) error {
 	return nil
 }
 
-func (m *memFS) ListXattrs(path string) (map[string][]byte, error) {
+func (m *MemFS) ListXattrs(path string) (map[string][]byte, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	
@@ -495,7 +495,7 @@ func (m *memFS) ListXattrs(path string) (map[string][]byte, error) {
 }
 
 // Symlink creates a symbolic link
-func (m *memFS) Symlink(oldname, newname string) error {
+func (m *MemFS) Symlink(oldname, newname string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	
@@ -531,7 +531,7 @@ func (m *memFS) Symlink(oldname, newname string) error {
 }
 
 // Link creates a hard link
-func (m *memFS) Link(oldname, newname string) error {
+func (m *MemFS) Link(oldname, newname string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	
@@ -561,7 +561,7 @@ func (m *memFS) Link(oldname, newname string) error {
 }
 
 // Readlink reads the target of a symbolic link
-func (m *memFS) Readlink(name string) (string, error) {
+func (m *MemFS) Readlink(name string) (string, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	
@@ -580,7 +580,7 @@ func (m *memFS) Readlink(name string) (string, error) {
 }
 
 // Device file operations (simplified)
-func (m *memFS) Mknod(path string, mode uint32, dev int) error {
+func (m *MemFS) Mknod(path string, mode uint32, dev int) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	
@@ -610,7 +610,7 @@ func (m *memFS) Mknod(path string, mode uint32, dev int) error {
 	return nil
 }
 
-func (m *memFS) Readnod(name string) (dev int, err error) {
+func (m *MemFS) Readnod(name string) (dev int, err error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	
@@ -627,7 +627,7 @@ func (m *memFS) Readnod(name string) (dev int, err error) {
 }
 
 // Sub returns a sub-filesystem
-func (m *memFS) Sub(path string) (apkfs.FullFS, error) {
+func (m *MemFS) Sub(path string) (apkfs.FullFS, error) {
 	cleanPath := filepath.Clean(path)
 	if cleanPath == "." {
 		return m, nil
@@ -648,7 +648,7 @@ func (m *memFS) Sub(path string) (apkfs.FullFS, error) {
 }
 
 // WriteToSquashFS writes the filesystem to a SquashFS image
-func (m *memFS) WriteToSquashFS(imagePath string, sizeHint int64) error {
+func (m *MemFS) WriteToSquashFS(imagePath string, sizeHint int64) error {
 	// Calculate filesystem size if not provided
 	if sizeHint <= 0 {
 		sizeHint = m.calculateSize() * 2 // Add some padding
@@ -692,11 +692,11 @@ func (m *memFS) WriteToSquashFS(imagePath string, sizeHint int64) error {
 }
 
 // calculateSize estimates the total size needed for the filesystem
-func (m *memFS) calculateSize() int64 {
+func (m *MemFS) calculateSize() int64 {
 	return m.calculateNodeSize(m.tree)
 }
 
-func (m *memFS) calculateNodeSize(node *node) int64 {
+func (m *MemFS) calculateNodeSize(node *node) int64 {
 	node.mu.RLock()
 	defer node.mu.RUnlock()
 	
@@ -708,7 +708,7 @@ func (m *memFS) calculateNodeSize(node *node) int64 {
 }
 
 // writeNodeToSquashFS recursively writes nodes to the SquashFS filesystem
-func (m *memFS) writeNodeToSquashFS(fs filesystem.FileSystem, node *node, path string) error {
+func (m *MemFS) writeNodeToSquashFS(fs filesystem.FileSystem, node *node, path string) error {
 	node.mu.RLock()
 	defer node.mu.RUnlock()
 	

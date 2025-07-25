@@ -57,6 +57,8 @@ type Options struct {
 	IncludePaths            []string           `json:"includePaths,omitempty"`
 	IgnoreSignatures        bool               `json:"ignoreSignatures,omitempty"`
 	Transport               http.RoundTripper  `json:"-"`
+	// UseSquashFS enables SquashFS layer format instead of tar.gz
+	UseSquashFS             bool               `json:"useSquashFS,omitempty"`
 }
 
 type Auth struct{ User, Pass string }
@@ -85,6 +87,14 @@ func (o *Options) TempDir() string {
 
 // TarballFileName returns a deterministic filename for the layer taball
 func (o Options) TarballFileName() string {
+	if o.UseSquashFS {
+		squashName := "apko.squashfs"
+		if o.Arch.String() != "" {
+			squashName = fmt.Sprintf("apko-%s.squashfs", o.Arch.ToAPK())
+		}
+		return squashName
+	}
+	
 	tarName := "apko.tar.gz"
 	if o.Arch.String() != "" {
 		tarName = fmt.Sprintf("apko-%s.tar.gz", o.Arch.ToAPK())
