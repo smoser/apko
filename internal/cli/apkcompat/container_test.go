@@ -51,9 +51,9 @@ func newContainerTest(t *testing.T) *containerTest {
 	name := fmt.Sprintf("%s-%d", containerPrefix, time.Now().Unix())
 
 	// Start container
-	cmd := exec.Command("docker", "run", "-d",
-		"--name", name,
-		"--mount", fmt.Sprintf("type=bind,source=%s,destination=/usr/bin/apko-as-apk", binaryPath),
+	cmd := exec.Command("docker", "run", "--detach",
+		"--name="+name,
+		"--mount="+fmt.Sprintf("type=bind,source=%s,destination=/usr/bin/apko-as-apk", binaryPath),
 		testImage,
 		"sleep", "3600",
 	)
